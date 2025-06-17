@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Detector de Números</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0"></script>
+  <style>
+    body {
+      text-align: center;
+      font-family: sans-serif;
+      background-color: #f5f5f5;
+    }
+    canvas {
+      border: 2px solid black;
+      background-color: white;
+      cursor: crosshair;
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+    }
+    #resultado {
+      font-size: 24px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Reconocimiento de Números (0-9)</h1>
+  <canvas id="canvas" width="100" height="100"></canvas><br>
+  <button class="btn" onclick="predecir()">Predecir</button>
+  <button class="btn" onclick="limpiar()">Limpiar</button>
+  <button class="btn" onclick="descargar()">Descargar Imagen</button>
+  <div id="resultado">Resultado:</div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    let pintando = false;
+
+    // Dibujo libre
+    canvas.addEventListener("mousedown", () => pintando = true);
+    canvas.addEventListener("mouseup", () => {
+      pintando = false;
+      ctx.beginPath();
+    });
+    canvas.addEventListener("mousemove", function (e) {
+      if (!pintando) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx.lineWidth = 10;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#000000";
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    });
+
+    // Descargar imagen
+    function descargar() {
+      const enlace = document.createElement('a');
+      enlace.download = "dibujo.png";
+      enlace.href = canvas.toDataURL();
+      enlace.click();
+    }
+
+    function limpiar() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById("resultado").innerText = "Resultado:";
+    }
+
+    let modelo;
+
+    // Cargar modelo
+    async function cargarModelo() {
+      try {
+        console.log("Cargando modelo...");
+        modelo = await tf.loadLayersModel("model.json");
+        console.log("Modelo cargado exitosamente.");
+      } catch (error) {
+        console.error("Error al cargar el modelo:", error);
+        alert("No se pudo cargar el modelo. Usa un servidor local para abrir este archivo (ver abajo).");
+      }
+    }
+
+    async function predecir() {
+      if (!modelo) {
+        alert("Modelo no cargado aún");
+        return;
+      }
+
+      const img = tf.browser.fromPixels(canvas, 1)
+        .resizeNearestNeighbor([100, 100])
+        .toFloat()
+        .div(255)
+        .reshape([1, 100, 100, 1]);
+
+      const resultado = modelo.predict(img);
+      const clase = resultado.argMax(-1).dataSync()[0];
+      document.getElementById("resultado").innerText = "Resultado: " + clase;
+    }
+
+    cargarModelo();
+  </script>
+</body>
+</html>
